@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>EL ALGORITMO DEL NIM - Javier Guerrero</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    * { box-sizing: border-box; }
+
+    /* 🌲 Fondo tipo bosque pixelado */
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 16px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      font-family: "Courier New", monospace;
+      color: #f8fafc;
+      background-color: #064e3b;
+      background-image:
+        linear-gradient(90deg, rgba(0,0,0,0.12) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(0,0,0,0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,197,94,0.15) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(34,197,94,0.15) 1px, transparent 1px);
+      background-size: 8px 8px, 8px 8px, 32px 32px, 32px 32px;
+      overflow-x: hidden;
+    }
+
+    /* Escalado grande estilo arcade */
+    .scaleWrap {
+      transform: scale(1.75);
+      transform-origin: top center;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 520px;
+      background: #020617;
+      border: 4px solid #22c55e;
+      padding: 12px;
+      margin-top: 10px;
+      box-shadow: 0 0 0 4px #000, 0 18px 40px rgba(0,0,0,0.8);
+      image-rendering: pixelated;
+    }
+
+    .screen-frame {
+      border: 3px solid #0f172a;
+      padding: 12px;
+      background: #020617;
+    }
+
+    .screen { display: none; }
+    #screenCover { display: block; }
+
+    .title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #bbf7d0;
+      text-shadow: 2px 2px #000;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: #a7f3d0;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .credits {
+      font-size: 10px;
+      color: #34d399;
+      text-align: center;
+      margin-bottom: 16px;
+      opacity: 0.9;
+      text-shadow: 1px 1px #000;
+    }
+
+    .label {
+      font-size: 11px;
+      color: #e5e7eb;
+      margin-bottom: 4px;
+      text-align: left;
+    }
+
+    .input {
+      width: 100%;
+      max-width: 260px;
+      padding: 6px 8px;
+      border-radius: 0;
+      border: 2px solid #0f172a;
+      background: #020617;
+      color: #e5e7eb;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      box-shadow: inset 2px 2px 0 #000;
+      outline: none;
+      margin-bottom: 4px;
+    }
+
+    .input:focus {
+      border-color: #22c55e;
+    }
+
+    .btn {
+      display: inline-block;
+      margin: 4px;
+      padding: 8px 16px;
+      border-radius: 0;
+      border: 3px solid #111827;
+      background: #1f2937;
+      color: #e5e7eb;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #000, -2px 0 0 #000, 2px 0 0 #000;
+      transition: transform 0.05s, box-shadow 0.05s, background 0.1s;
+    }
+
+    .btn:hover {
+      background: #374151;
+    }
+
+    .btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000;
+    }
+
+    .btn-primary {
+      background: #22c55e;
+      color: #022c22;
+      border-color: #16a34a;
+    }
+
+    .btn-primary:hover {
+      background: #4ade80;
+    }
+
+    .btn-yellow {
+      background: #facc15;
+      border-color: #eab308;
+      color: #1f2937;
+    }
+
+    .btn-yellow:hover {
+      background: #fbbf24;
+    }
+
+    .btn-mode {
+      width: 100%;
+      max-width: 260px;
+      text-align: center;
+    }
+
+    .btn-back {
+      background: #94a3b8;
+      border-color: #64748b;
+      color: #1e293b;
+      width: 100%;
+      max-width: 180px;
+      margin-top: 4px;
+    }
+
+    .btn-back:hover {
+      background: #cbd5e1;
+    }
+
+    .tokens {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px;
+      min-height: 90px;
+      margin-bottom: 6px;
+    }
+
+    .token {
+      width: 28px;
+      height: 28px;
+      border-radius: 0;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border: 2px solid #14532d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      box-shadow: 0 2px 0 #0f172a, -2px 0 0 #0f172a, 2px 0 0 #0f172a;
+      image-rendering: pixelated;
+    }
+
+    @keyframes spritePop {
+      0%   { transform: scale(1) translateY(0); opacity: 1; }
+      30%  { transform: scale(1.3) translateY(-4px); opacity: 1; }
+      100% { transform: scale(0) translateY(6px); opacity: 0; }
+    }
+    .token.pop {
+      animation: spritePop 0.35s forwards;
+    }
+
+    .counter {
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #bbf7d0;
+      text-align: center;
+    }
+
+    .turn {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #e5e7eb;
+      text-align: center;
+    }
+
+    .winner {
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #facc15;
+      text-shadow: 1px 1px #000;
+      min-height: 18px;
+      text-align: center;
+    }
+
+    .history {
+      margin-top: 10px;
+      width: 100%;
+      max-height: 150px;
+      overflow-y: auto;
+      border-radius: 0;
+      border: 2px solid #0f172a;
+      background: #020617;
+      padding: 6px 6px 4px;
+      font-size: 10px;
+      text-align: left;
+      box-shadow: inset 2px 2px 0 #000;
+    }
+
+    .history-title {
+      font-weight: 700;
+      color: #22c55e;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .history-entry {
+      margin-bottom: 2px;
+      color: #e5e7eb;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    /* Estilo de instrucciones */
+    .instructions-text {
+      font-size: 11px;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      color: #e5e7eb;
+    }
+
+    .instructions-icons {
+      font-size: 20px;
+      text-align: center;
+      margin: 6px 0 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="scaleWrap">
+  <div class="app">
+    <div class="screen-frame">
+
+      <!-- PORTADA -->
+      <div id="screenCover" class="screen">
+        <div class="title">EL ALGORITMO DEL NIM</div>
+        <div class="subtitle">CÓDIGO ESCUELA 4.0</div>
+        <div class="credits">Hecho por Javier Guerrero</div>
+
+        <div class="center">
+          <button id="btnGoToModes" class="btn btn-primary btn-mode">▶ COMENZAR</button>
+          <button id="btnInstructions" class="btn btn-mode" style="margin-top:8px;">
+            INSTRUCCIONES DEL JUEGO
+          </button>
+        </div>
+      </div>
+
+      <!-- INSTRUCCIONES -->
+      <div id="screenInstructions" class="screen">
+        <div class="title">INSTRUCCIONES</div>
+        <div class="subtitle">¿Cómo se juega a EL ALGORITMO DEL NIM?</div>
+
+        <div class="instructions-icons">
+          🐸 🐢 🐱 🐶 🐰 🐻 🦊 🐷
+        </div>
+
+        <div class="instructions-text">
+          En la jungla hay <b>21 animales</b> atrapados.<br>
+          Tú y el zorro 🦊 (o tu compañero) van a <b>liberar animales</b> por turnos.
+        </div>
+
+        <div class="instructions-text">
+          En cada turno puedes liberar <b>1, 2 o 3 animales</b>.<br>
+          Cuando toques un botón, verás cómo saltan los animales de la jaula.
+        </div>
+
+        <div class="instructions-text">
+          El objetivo del juego es <b>NO liberar el último animal</b>.<br>
+          Si tú liberas el último... <b>pierdes la partida</b>.
+        </div>
+
+        <div class="instructions-text">
+          Piensa bien cuántos quieres liberar para que sea tu rival
+          quien se quede con el <b>último animal</b>.
+        </div>
+
+        <div class="instructions-icons">
+          🎮 ¡Usa la cabeza, calcula y atrapa al zorro en su propia trampa! 🎮
+        </div>
+
+        <div class="center" style="margin-top:10px;">
+          <button id="btnBackFromInstructions" class="btn btn-back">← VOLVER</button>
+        </div>
+      </div>
+
+      <!-- SELECCIONA MODO -->
+      <div id="screenMode" class="screen">
+        <div class="title">SELECCIONA MODO</div>
+        <div class="center">
+          <button id="btnMode1" class="btn btn-mode">1 JUGADOR (VS ZORRO)</button>
+          <button id="btnMode2" class="btn btn-mode">2 JUGADORES</button>
+          <button id="btnBackCover" class="btn btn-back">← ATRÁS</button>
+        </div>
+      </div>
+
+      <!-- NOMBRE JUGADOR (VS CPU) -->
+      <div id="screenName1" class="screen">
+        <div class="title">INTRODUCE TU NOMBRE</div>
+        <div class="center">
+          <input id="playerNameInput" class="input" placeholder="PLAYER">
+        </div>
+        <div class="center">
+          <button id="btnContinueName1" class="btn btn-primary">OK</button><br/>
+          <button id="btnBackModes1" class="btn btn-back">← ATRÁS</button>
+        </div>
+      </div>
+
+      <!-- NOMBRES 2 JUGADORES -->
+      <div id="screenNames2" class="screen">
+        <div class="title">2 JUGADORES</div>
+
+        <div class="label">Jugador 1:</div>
+        <input id="player1Input" class="input" placeholder="PLAYER 1">
+
+        <div class="label" style="margin-top:8px;">Jugador 2:</div>
+        <input id="player2Input" class="input" placeholder="PLAYER 2">
+
+        <div class="center" style="margin-top:10px;">
+          <button id="btnStart2Players" class="btn btn-primary">START</button><br/>
+          <button id="btnBackModes2" class="btn btn-back">← ATRÁS</button>
+        </div>
+      </div>
+
+      <!-- QUIÉN EMPIEZA (VS CPU) -->
+      <div id="screenStartChoice" class="screen">
+        <div class="title">¿QUIÉN EMPIEZA?</div>
+        <div class="center">
+          <button id="btnStartPlayer" class="btn btn-primary btn-mode">YO</button>
+          <button id="btnStartCPU" class="btn btn-mode">ZORRO 🦊</button><br/>
+          <button id="btnBackName1" class="btn btn-back">← ATRÁS</button>
+        </div>
+      </div>
+
+      <!-- JUEGO -->
+      <div id="screenGame" class="screen">
+        <div class="title">EL ALGORITMO DEL NIM</div>
+        <div class="subtitle">NO LIBERES EL ÚLTIMO ANIMAL</div>
+
+        <div id="tokens" class="tokens"></div>
+        <div id="counter" class="counter"></div>
+
+        <div class="center">
+          <button id="btn1" class="btn btn-yellow">LIBERAR 1</button>
+          <button id="btn2" class="btn btn-yellow">LIBERAR 2</button>
+          <button id="btn3" class="btn btn-yellow">LIBERAR 3</button>
+        </div>
+
+        <div id="turn" class="turn"></div>
+        <div id="winner" class="winner"></div>
+
+        <div class="center" style="margin-top:8px;">
+          <button id="btnRestart" class="btn">RESET</button>
+        </div>
+
+        <div id="history" class="history">
+          <div class="history-title">HISTORIAL</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---------- Estado del juego ----------
+  let heap = 21;
+  let moveNumber = 1;
+  let gameOver = false;
+  let playerTurn = true;  // true = turno jugador humano (modo vs CPU)
+  let gameMode = 1;       // 1 = vs CPU, 2 = 2 jugadores
+  let currentPlayer = 1;  // 1 o 2 en modo 2 jugadores
+
+  let playerName = "";    // vs CPU
+  let p1 = "";            // nombre jugador 1
+  let p2 = "";            // nombre jugador 2
+
+  // ---------- Atajos de elementos ----------
+  const screenCover        = document.getElementById("screenCover");
+  const screenInstructions = document.getElementById("screenInstructions");
+  const screenMode         = document.getElementById("screenMode");
+  const screenName1        = document.getElementById("screenName1");
+  const screenNames2       = document.getElementById("screenNames2");
+  const screenStartChoice  = document.getElementById("screenStartChoice");
+  const screenGame         = document.getElementById("screenGame");
+
+  const playerNameInput = document.getElementById("playerNameInput");
+  const player1Input    = document.getElementById("player1Input");
+  const player2Input    = document.getElementById("player2Input");
+
+  const tokensEl  = document.getElementById("tokens");
+  const counterEl = document.getElementById("counter");
+  const turnEl    = document.getElementById("turn");
+  const winnerEl  = document.getElementById("winner");
+  const historyEl = document.getElementById("history");
+
+  const btnGoToModes          = document.getElementById("btnGoToModes");
+  const btnInstructions       = document.getElementById("btnInstructions");
+  const btnBackFromInstructions = document.getElementById("btnBackFromInstructions");
+
+  const btnMode1      = document.getElementById("btnMode1");
+  const btnMode2      = document.getElementById("btnMode2");
+  const btnBackCover  = document.getElementById("btnBackCover");
+  const btnBackModes1 = document.getElementById("btnBackModes1");
+  const btnBackModes2 = document.getElementById("btnBackModes2");
+  const btnBackName1  = document.getElementById("btnBackName1");
+
+  const btnContinueName1 = document.getElementById("btnContinueName1");
+  const btnStartPlayer   = document.getElementById("btnStartPlayer");
+  const btnStartCPU      = document.getElementById("btnStartCPU");
+  const btnStart2Players = document.getElementById("btnStart2Players");
+
+  const btn1       = document.getElementById("btn1");
+  const btn2       = document.getElementById("btn2");
+  const btn3       = document.getElementById("btn3");
+  const btnRestart = document.getElementById("btnRestart");
+
+  // ---------- Cambio de pantalla ----------
+  function go(screenId) {
+    const screens = [
+      screenCover,
+      screenInstructions,
+      screenMode,
+      screenName1,
+      screenNames2,
+      screenStartChoice,
+      screenGame
+    ];
+    screens.forEach(s => s.style.display = "none");
+    document.getElementById(screenId).style.display = "block";
+  }
+
+  // ---------- Sonidos retro ----------
+  function beep() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.value = 800;
+    gain.gain.value = 0.15;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.08);
+  }
+
+  function winSound() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const g1 = ctx.createGain();
+    const g2 = ctx.createGain();
+    osc1.type = osc2.type = "square";
+    osc1.frequency.value = 600;
+    osc2.frequency.value = 900;
+    g1.gain.value = g2.gain.value = 0.15;
+    osc1.connect(g1); g1.connect(ctx.destination);
+    osc2.connect(g2); g2.connect(ctx.destination);
+    osc1.start();
+    osc2.start(ctx.currentTime + 0.1);
+    osc1.stop(ctx.currentTime + 0.2);
+    osc2.stop(ctx.currentTime + 0.3);
+  }
+
+  function loseSound() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.value = 200;
+    gain.gain.value = 0.15;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.3);
+    osc.stop(ctx.currentTime + 0.3);
+  }
+
+  function melody2Players() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    function note(freq, start, dur) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.value = freq;
+      gain.gain.value = 0.18;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur);
+    }
+    note(660, 0.00, 0.20);
+    note(880, 0.20, 0.20);
+    note(990, 0.40, 0.20);
+    note(1320,0.60, 0.25);
+  }
+
+  // ---------- Animación de los animales ----------
+  function animatePop(n) {
+    const tokens = document.querySelectorAll("#tokens .token");
+    let count = 0;
+    for (let i = tokens.length - 1; i >= 0 && count < n; i--, count++) {
+      tokens[i].classList.add("pop");
+    }
+    return new Promise(resolve => setTimeout(resolve, 350));
+  }
+
+  // ---------- Render ----------
+  function render() {
+    tokensEl.innerHTML = "";
+    const animals = ["🐸","🐢","🐱","🐶","🐰","🐻","🦊","🐷"];
+
+    for (let i = 0; i < heap; i++) {
+      const tile = document.createElement("div");
+      tile.className = "token";
+      tile.textContent = animals[i % animals.length];
+      tokensEl.appendChild(tile);
+    }
+
+    counterEl.textContent = `QUEDAN ${heap} ANIMALES`;
+
+    if (gameMode === 1) {
+      turnEl.textContent = playerTurn
+        ? `${playerName}: TU TURNO`
+        : "TURNO DEL ZORRO";
+    } else {
+      const name = currentPlayer === 1 ? p1 : p2;
+      turnEl.textContent = `${name}: TU TURNO`;
+    }
+
+    btn1.disabled = heap < 1 || gameOver;
+    btn2.disabled = heap < 2 || gameOver;
+    btn3.disabled = heap < 3 || gameOver;
+
+    if (gameMode === 1 && !playerTurn) {
+      btn1.disabled = btn2.disabled = btn3.disabled = true;
+    }
+  }
+
+  // ---------- Historial ----------
+  function addHistory(text) {
+    const div = document.createElement("div");
+    div.className = "history-entry";
+    div.textContent = text;
+    historyEl.appendChild(div);
+    historyEl.scrollTop = historyEl.scrollHeight;
+  }
+
+  // ---------- Fin de partida ----------
+  function endGame(lastWasPlayer) {
+    gameOver = true;
+
+    if (gameMode === 1) {
+      if (lastWasPlayer) {
+        winnerEl.textContent = "GAME OVER: LIBERASTE EL ÚLTIMO";
+        loseSound();
+      } else {
+        winnerEl.textContent = "¡VICTORIA! EL ZORRO CAYÓ EN LA TRAMPA";
+        winSound();
+      }
+    } else {
+      const winnerName = currentPlayer === 1 ? p2 : p1;
+      winnerEl.textContent = `GANADOR: ${winnerName}`;
+      melody2Players();
+    }
+  }
+
+  // ---------- Movimiento jugador ----------
+  async function playerMove(amount) {
+    if (gameMode === 1 && !playerTurn) return;
+    if (gameOver) return;
+
+    await animatePop(amount);
+    heap -= amount;
+    beep();
+
+    if (gameMode === 1) {
+      addHistory(`J${moveNumber}: ${playerName} libera ${amount}. Quedan ${heap}.`);
+    } else {
+      const name = currentPlayer === 1 ? p1 : p2;
+      addHistory(`J${moveNumber}: ${name} libera ${amount}. Quedan ${heap}.`);
+    }
+
+    moveNumber++;
+    render();
+
+    if (heap === 0) {
+      endGame(true);
+      return;
+    }
+
+    if (gameMode === 1) {
+      playerTurn = false;
+      render();
+      setTimeout(cpuMove, 650);
+    } else {
+      currentPlayer = currentPlayer === 1 ? 2 : 1;
+      render();
+    }
+  }
+
+  // ---------- Movimiento CPU ----------
+  async function cpuMove() {
+    if (playerTurn || gameOver) return;
+
+    let move;
+    if (heap === 1) {
+      move = 1;
+    } else if (heap % 4 === 1) {
+      move = 1;
+    } else {
+      move = (heap - 1) % 4;
+    }
+    move = Math.max(1, Math.min(move, 3));
+
+    await animatePop(move);
+    heap -= move;
+    beep();
+    addHistory(`J${moveNumber}: Zorro libera ${move}. Quedan ${heap}.`);
+    moveNumber++;
+    render();
+
+    if (heap === 0) {
+      endGame(false);
+      return;
+    }
+
+    playerTurn = true;
+    render();
+  }
+
+  // ---------- Arranque VS CPU ----------
+  function startVsCpu(playerStarts) {
+    gameMode = 1;
+    heap = 21;
+    moveNumber = 1;
+    gameOver = false;
+    playerTurn = playerStarts;
+    winnerEl.textContent = "";
+    historyEl.innerHTML = '<div class="history-title">HISTORIAL</div>';
+    go("screenGame");
+    render();
+    if (!playerStarts) {
+      setTimeout(cpuMove, 650);
+    }
+  }
+
+  // ---------- Arranque 2 jugadores ----------
+  function start2Players() {
+    gameMode = 2;
+    heap = 21;
+    moveNumber = 1;
+    gameOver = false;
+    p1 = (player1Input.value || "").trim() || "PLAYER 1";
+    p2 = (player2Input.value || "").trim() || "PLAYER 2";
+    currentPlayer = Math.random() < 0.5 ? 1 : 2;
+    winnerEl.textContent = "";
+    historyEl.innerHTML = '<div class="history-title">HISTORIAL</div>';
+    addHistory(`Comienza ${currentPlayer === 1 ? p1 : p2}.`);
+    go("screenGame");
+    render();
+  }
+
+  // ---------- Navegación ----------
+  btnGoToModes.onclick    = () => go("screenMode");
+  btnBackCover.onclick    = () => go("screenCover");
+
+  btnInstructions.onclick       = () => go("screenInstructions");
+  btnBackFromInstructions.onclick = () => go("screenCover");
+
+  btnMode1.onclick = () => {
+    gameMode = 1;
+    go("screenName1");
+  };
+
+  btnMode2.onclick = () => {
+    gameMode = 2;
+    go("screenNames2");
+  };
+
+  btnBackModes1.onclick = () => go("screenMode");
+  btnBackModes2.onclick = () => go("screenMode");
+  btnBackName1.onclick  = () => go("screenName1");
+
+  btnContinueName1.onclick = () => {
+    playerName = (playerNameInput.value || "").trim() || "PLAYER";
+    go("screenStartChoice");
+  };
+
+  btnStartPlayer.onclick = () => startVsCpu(true);
+  btnStartCPU.onclick    = () => startVsCpu(false);
+
+  btnStart2Players.onclick = () => start2Players();
+
+  // ---------- Botones de jugada ----------
+  btn1.onclick = () => playerMove(1);
+  btn2.onclick = () => playerMove(2);
+  btn3.onclick = () => playerMove(3);
+
+  btnRestart.onclick = () => {
+    go("screenMode");
+  };
+</script>
+
+</body>
+</html>
